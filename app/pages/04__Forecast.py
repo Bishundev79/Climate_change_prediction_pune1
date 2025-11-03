@@ -48,30 +48,60 @@ def fetch_latest_from_csv(file='data/pune_climate_with_co2.csv'):
         return None
 
 def fetch_monthly_from_openmeteo():
+    """
+    Fetch last 31 days of weather data from Open-Meteo API and compute monthly averages.
+    Converts units to match project schema (temp_C, humidity_pct, rainfall_mm, solar_MJ).
+    """
     try:
-        # Pune coordinates, 31 days, daily features
-        url = (
-            "https://api.open-meteo.com/v1/forecast"
-            "?latitude=18.5204&longitude=73.8567"
-            "&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,humidity_2m_max,humidity_2m_min,shortwave_radiation_sum"
-            "&past_days=31"
-            "&timezone=Asia%2FKolkata"
-        )
-        resp = requests.get(url, timeout=5)
-        if resp.status_code == 200:
-            jsn = resp.json()
-            temps = [(a+b)/2 for a,b in zip(jsn['daily']['temperature_2m_max'], jsn['daily']['temperature_2m_min'])]
-            humidity = [(a+b)/2 for a,b in zip(jsn['daily']['humidity_2m_max'], jsn['daily']['humidity_2m_min'])]
-            rainfall = jsn['daily']['precipitation_sum']
-            solar = jsn['daily']['shortwave_radiation_sum']
-            return {
-                'temp_C': float(np.mean(temps)),
-                'humidity_pct': float(np.mean(humidity)),
-                'rainfall_mm': float(np.sum(rainfall)),
-                'solar_MJ': float(np.mean(solar)),
-            }
-    except Exception:
-        pass
+        # Pune coordinates
+        url = "https://api.open-meteo.com/v1/forecast"
+        params = {
+            "latitude": 18.5204,
+            "longitude": 73.8567,
+            "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum,relative_humidity_2m_max,relative_humidity_2m_min,shortwave_radiation_sum",
+            "past_days": 31,
+            "timezone": "Asia/Kolkata"
+        }
+        
+        resp = requests.get(url, params=params, timeout=5)
+        resp.raise_for_status()  # Raise exception for bad status codes
+        
+        jsn = resp.json()
+        daily = jsn.get('daily', {})
+        
+        # Check if all required fields exist
+        required_fields = ['temperature_2m_max', 'temperature_2m_min', 'precipitation_sum', 
+                          'relative_humidity_2m_max', 'relative_humidity_2m_min', 'shortwave_radiation_sum']
+        if not all(field in daily for field in required_fields):
+            return None
+        
+        # Calculate averages (filter out None values)
+        temps_max = [t for t in daily['temperature_2m_max'] if t is not None]
+        temps_min = [t for t in daily['temperature_2m_min'] if t is not None]
+        temps = [(a+b)/2 for a, b in zip(temps_max, temps_min)]
+        
+        humidity_max = [h for h in daily['relative_humidity_2m_max'] if h is not None]
+        humidity_min = [h for h in daily['relative_humidity_2m_min'] if h is not None]
+        humidity = [(a+b)/2 for a, b in zip(humidity_max, humidity_min)]
+        
+        rainfall = [r for r in daily['precipitation_sum'] if r is not None]
+        solar_raw = [s for s in daily['shortwave_radiation_sum'] if s is not None]
+        
+        # Convert solar radiation from Wh/m² to MJ/m² (1 Wh = 0.0036 MJ)
+        solar = [s * 0.0036 for s in solar_raw]
+        
+        return {
+            'temp_C': float(np.mean(temps)) if temps else 25.0,
+            'humidity_pct': float(np.mean(humidity)) if humidity else 65.0,
+            'rainfall_mm': float(np.sum(rainfall)) if rainfall else 50.0,
+            'solar_MJ': float(np.mean(solar)) if solar else 18.0,
+        }
+    except requests.exceptions.RequestException as e:
+        st.error(f"API request failed: {str(e)}")
+    except (KeyError, ValueError, TypeError) as e:
+        st.error(f"Data parsing error: {str(e)}")
+    except Exception as e:
+        st.error(f"Unexpected error fetching live data: {str(e)}")
     return None
 
 results = load_results()

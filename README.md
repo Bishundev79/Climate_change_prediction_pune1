@@ -1,53 +1,68 @@
-# 🌍 Climate Change Prediction - Pune, Maharashtra
+# 🌍 Climate Change Prediction — Pune, Maharashtra
 
-Advanced machine learning and deep learning system for climate forecasting using 73 years of historical data (1951-2024) from Pune, India.
+Advanced ML & Deep Learning system for climate forecasting using 73 years of historical data (1951–2024) from Pune, India.
 
-![Python](https://img.shields.io/badge/Python-3.12-blue)
+![Python](https://img.shields.io/badge/Python-3.11-blue)
 ![TensorFlow](https://img.shields.io/badge/TensorFlow-2.16-orange)
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.31-red)
+![License](https://img.shields.io/badge/License-MIT-green)
 
 ## 🎯 Project Overview
 
-This project implements a comprehensive climate prediction system that:
-- Analyzes 73 years of historical climate data from Pune, Maharashtra
-- Uses 4 state-of-the-art AI models (2 ML + 2 DL) for temperature forecasting
-- Provides an interactive web dashboard for visualization and predictions
-- Supports real-time forecasting through IoT sensor simulation
+A comprehensive climate prediction system that:
+
+- Analyses 73 years of historical climate data from Pune, Maharashtra
+- Trains **6 AI models** (2 ML + 2 DL + 2 Ensembles) for temperature forecasting
+- Provides an interactive multi-page Streamlit dashboard with real-time predictions
+- Supports 4 data-source inputs: Manual, IoT Sensor, CSV, and live Open-Meteo API
+- Fully **config-driven** — all hyper-parameters live in `config.yaml`, zero code edits required
 
 ## 🚀 Features
 
-- **Multiple Model Architectures**:
-  - XGBoost (Gradient Boosting)
-  - Random Forest (Ensemble Learning)
-  - CNN-LSTM Hybrid (Deep Learning)
-  - Transformer with Multi-Head Attention (Deep Learning)
+### Model Architectures
+| Type | Model | Technique |
+|------|-------|-----------|
+| ML | **XGBoost** | Gradient Boosting |
+| ML | **Random Forest** | Bagging Ensemble |
+| DL | **CNN-LSTM Hybrid** | 1-D Conv → LSTM |
+| DL | **Transformer** | Multi-Head Self-Attention |
+| Ensemble | **ML Ensemble** | Average of XGBoost + Random Forest |
+| Ensemble | **DL Ensemble** | Average of CNN-LSTM + Transformer |
 
-- **Interactive Dashboard**:
-  - Model performance leaderboard
-  - Historical climate trends visualization
-  - Real-time temperature forecasting
-  - Data exploration tools
+### Interactive Dashboard (6 pages)
+| Page | Description |
+|------|-------------|
+| **Home** | Model leaderboard, best-model banner, temperature trend chart |
+| **Overview** | Project statistics, dataset summary, model cards |
+| **Data Explorer** | Interactive time-series charts, correlations, distributions |
+| **Model Arena** | Side-by-side model comparison with metrics |
+| **Forecast** | Real predictions using trained models with confidence intervals |
+| **Benchmark** | RMSE / MAE / R² comparison across all 6 models |
 
-- **Advanced Feature Engineering**:
-  - Lag features (1, 6, 12 months)
-  - Rolling window statistics
-  - Cyclical time encoding
+### Advanced Feature Engineering
+- Lag features (1, 6, 12 months)
+- Rolling-window statistics (3, 6, 12 months)
+- Cyclical month encoding (sin/cos)
+- CO₂ concentration as exogenous feature
 
 ## 📊 Dataset
 
-Historical climate data from Pune (1951-2024):
-- **Temperature** (Target variable)
-- **Humidity**
-- **Rainfall**
-- **Solar Radiation**
-- **CO2 Concentration**
+Historical climate data from Pune (1951–2024):
 
-**Total Records**: 876,000+ daily observations
+| Feature | Description |
+|---------|-------------|
+| `temp_C` | Average temperature (°C) — **target variable** |
+| `humidity_pct` | Relative humidity (%) |
+| `rainfall_mm` | Monthly rainfall (mm) |
+| `solar_MJ` | Solar radiation (MJ/m²) |
+| `co2_ppm` | Atmospheric CO₂ (ppm) |
+
+**Records**: ~27,000 daily observations → resampled to monthly
 
 ## 🛠️ Installation
 
 ### Prerequisites
-- Python 3.12+
+- **Python 3.11** (recommended for TensorFlow compatibility)
 - pip
 
 ### Setup
@@ -58,40 +73,44 @@ git clone https://github.com/Bishundev79/Climate_change_prediction_pune1.git
 cd Climate_change_prediction_pune1
 
 # Create virtual environment
-python -m venv venv
+python3.11 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
+
+# macOS Apple Silicon (M1/M2/M3) — use the optimised requirements:
+pip install -r requirements-macos.txt
 ```
 
 ## 🎮 Usage
 
 ### 1. Train Models
 
-Train all 4 AI models and save results:
+Train all 6 AI models and save results:
 
 ```bash
 python train.py
 ```
 
 This will:
-- Process and prepare the climate data
+- Process and prepare the climate data (monthly resampling, imputation)
 - Train XGBoost, Random Forest, CNN-LSTM, and Transformer models
-- Save trained models to `models/` directory
+- Compute ML Ensemble and DL Ensemble predictions
+- Save trained models to `models/`
 - Generate performance metrics in `results/test_metrics.csv`
 
-Expected training time: 5-10 minutes (depending on hardware)
+Expected training time: ~5–10 minutes (depends on hardware)
 
 ### 2. Launch Dashboard
 
 Start the interactive Streamlit web application:
 
 ```bash
-streamlit run app/streamlit_app.py
+cd app && streamlit run streamlit_app.py
 ```
 
-Access the dashboard at: `http://localhost:8501`
+Access the dashboard at: **http://localhost:8501**
 
 ### 3. Run IoT Sensor Simulation (Optional)
 
@@ -101,89 +120,100 @@ For real-time forecasting demonstration:
 python fake_iot_sensor.py
 ```
 
-This starts a Flask server on `http://localhost:5001` that simulates IoT sensor readings.
+Starts a Flask server on **http://localhost:5001** that simulates live IoT sensor readings. The Forecast page fetches data from this endpoint when "IoT Sensor (REST)" is selected.
 
 ## 📁 Project Structure
 
 ```
 Climate_change_prediction_pune1/
 ├── app/
-│   ├── streamlit_app.py       # Main dashboard
-│   ├── pages/                 # Multi-page app
-│   │   ├── 01__Overview.py
-│   │   ├── 02__Data_Explorer.py
-│   │   ├── 03__Model_Arena.py
-│   │   └── 04__Forecast.py
+│   ├── streamlit_app.py          # Main dashboard (Home page)
+│   ├── pages/
+│   │   ├── 01__Overview.py       # Project statistics
+│   │   ├── 02__Data_Explorer.py  # Interactive charts
+│   │   ├── 03__Model_Arena.py    # Model comparison
+│   │   ├── 04__Forecast.py       # Real-time predictions
+│   │   └── 05__Benchmark.py      # Performance benchmarks
+│   ├── static/
+│   │   └── styles.css            # Centralised CSS (zero inline styles)
 │   └── utils/
+│       └── shared.py             # Reusable UI components & helpers
 ├── data/
-│   └── pune_climate_with_co2.csv
+│   └── pune_climate_with_co2.csv # 73 years of climate data
 ├── src/
-│   ├── config.py              # Configuration management
-│   ├── data_pipeline.py       # Data loading & preprocessing
-│   ├── feature_engine.py      # Feature engineering
-│   ├── ml_models.py           # ML model implementations
-│   ├── dl_models.py           # Deep learning models
-│   └── evaluator.py           # Model evaluation
-├── models/                    # Saved trained models
-├── results/                   # Performance metrics
-├── config.yaml                # Hyperparameters
-├── train.py                   # Training script
-├── fake_iot_sensor.py         # IoT simulator
-└── requirements.txt
+│   ├── config.py                 # YAML-driven configuration singleton
+│   ├── data_pipeline.py          # Data loading, resampling, splitting
+│   ├── feature_engine.py         # Lag, rolling, cyclical features
+│   ├── ml_models.py              # XGBoost + Random Forest wrappers
+│   ├── dl_models.py              # CNN-LSTM + Transformer wrappers
+│   ├── evaluator.py              # RMSE, MAE, R² evaluation
+│   └── logger.py                 # Centralised logging
+├── models/                       # Saved model artefacts (.pkl, .keras)
+├── results/                      # Metrics CSVs & feature importances
+├── config.yaml                   # All hyper-parameters (single source of truth)
+├── train.py                      # Training orchestration script
+├── fake_iot_sensor.py            # IoT REST API simulator (Flask)
+├── requirements.txt              # Dependencies (Linux / generic)
+└── requirements-macos.txt        # Dependencies (Apple Silicon)
 ```
 
 ## 🏆 Model Performance
 
 | Model | RMSE (°C) | MAE (°C) | R² Score |
 |-------|-----------|----------|----------|
-| **XGBoost** | 0.80 | 0.62 | 0.94 |
-| **Random Forest** | 0.85 | 0.65 | 0.93 |
-| **CNN-LSTM** | 0.92 | 0.71 | 0.91 |
-| **Transformer** | 0.88 | 0.68 | 0.92 |
+| **XGBoost** | 0.8049 | 0.5945 | 0.9328 |
+| **ML Ensemble** | 0.8063 | 0.5782 | 0.9326 |
+| **Random Forest** | 0.8410 | 0.5820 | 0.9267 |
+| **CNN-LSTM** | 1.3336 | 1.0214 | 0.8173 |
+| **DL Ensemble** | 2.0970 | 1.6321 | 0.5483 |
+| **Transformer** | 3.1176 | 2.4649 | 0.0016 |
 
-*Results may vary slightly based on random initialization*
+> **Note**: ML models significantly outperform DL models on this dataset due to the relatively small sample size (~800 monthly records after resampling). The Transformer's poor R² demonstrates that complex architectures aren't always better — a finding worth discussing.
 
 ## 🔧 Configuration
 
-All model hyperparameters can be adjusted in `config.yaml`:
+All hyper-parameters are managed in `config.yaml` — no code edits needed:
 
 ```yaml
 training:
-  lookback: 24              # Sequence length for DL models
+  lookback: 24              # Months of history for DL sequence input
   batch_size: 32
   epochs: 200
-  patience: 25              # Early stopping patience
-  lag_features: [1, 6, 12]
+  patience: 25              # Early stopping patience (epochs)
+  lag_features: [1, 6, 12]  # Lag offsets in months
   rolling_windows: [3, 6, 12]
+
+models:
+  xgboost:
+    n_estimators: 500
+    max_depth: 8
+    learning_rate: 0.05
+  # ... see config.yaml for full list
 ```
 
 ## 📚 Technical Details
 
 ### Data Pipeline
-1. Load daily climate data (1951-2024)
-2. Resample to monthly averages
-3. Handle missing values via interpolation
-4. Split: 70% train, 15% validation, 15% test
+1. Load daily climate CSV (1951–2024)
+2. Resample to monthly frequency (aggregation per feature)
+3. Impute missing values via linear interpolation + back-fill
+4. Chronological split: 70% train / 15% validation / 15% test
 
 ### ML Models (XGBoost, Random Forest)
-- Use engineered tabular features (lags, rolling stats, cyclical time)
-- No feature scaling required
-- Single-step ahead prediction
+- Trained on engineered tabular features (lags, rolling stats, cyclical month)
+- Saved as `.pkl` via joblib — fast inference
+- Config-driven hyper-parameters
 
 ### DL Models (CNN-LSTM, Transformer)
-- Process raw time series sequences
-- Use StandardScaler for features and target
-- Lookback window: 24 months
-- Inverse-transform predictions to original scale
+- Trained on raw scaled time-series sequences (lookback = 24 months)
+- StandardScaler for features and target (scalers saved for inference)
+- Saved as `.keras` checkpoints
+- Predictions inverse-transformed to original scale
 
-## 🖼️ Dashboard Screenshots
-
-The interactive dashboard includes:
-- **Home**: Model leaderboard and climate trends
-- **Overview**: Project statistics and dataset info
-- **Data Explorer**: Interactive charts and correlations
-- **Model Arena**: Training history and comparisons
-- **Forecast**: Real-time predictions with multiple data sources
+### Ensembles
+- **ML Ensemble**: Simple average of XGBoost + Random Forest predictions
+- **DL Ensemble**: Simple average of CNN-LSTM + Transformer predictions
+- Computed at training time and available for live inference in the Forecast page
 
 ## 🤝 Contributing
 
@@ -194,7 +224,7 @@ Contributions are welcome! Feel free to:
 
 ## 📝 License
 
-This project is open source and available under the MIT License.
+This project is open source and available under the [MIT License](LICENSE).
 
 ## 👤 Author
 
@@ -203,13 +233,9 @@ This project is open source and available under the MIT License.
 
 ## 🙏 Acknowledgments
 
-- Climate data sourced from historical weather records
-- CO2 data from atmospheric monitoring networks
-- Built with TensorFlow, Scikit-learn, and Streamlit
-
-## 📧 Contact
-
-For questions or collaboration opportunities, please open an issue on GitHub.
+- Climate data sourced from historical weather records for Pune, Maharashtra
+- CO₂ data from atmospheric monitoring networks
+- Built with TensorFlow, Scikit-learn, XGBoost, and Streamlit
 
 ---
 

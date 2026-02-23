@@ -1,182 +1,175 @@
-import pandas as pd
+"""
+Page 1 — Project Overview.
+
+Dataset statistics (computed dynamically), long-term climate trends,
+seasonal analysis, and model performance summary.
+"""
+
 import streamlit as st
 import plotly.graph_objects as go
-import plotly.express as px
+
+from utils.shared import (
+    load_css,
+    load_results,
+    load_climate_data,
+    hero_section,
+    gradient_card,
+    footer,
+    empty_state,
+)
 
 st.set_page_config(page_title="Overview | Pune Climate", page_icon="📊", layout="wide")
+load_css()
 
-# Custom CSS (same premium styling)
-st.markdown("""
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
-    * { font-family: 'Inter', sans-serif; }
-    .main { background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); }
-    .metric-card {
-        background: white;
-        padding: 2rem;
-        border-radius: 15px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        margin: 1rem 0;
-    }
-    .section-header {
-        color: #2c3e50;
-        font-weight: 700;
-        font-size: 2rem;
-        margin: 2rem 0 1rem 0;
-        border-left: 5px solid #27ae60;
-        padding-left: 1rem;
-    }
-</style>
-""", unsafe_allow_html=True)
+df = load_climate_data()
+results = load_results()
 
+# ── Hero Banner ───────────────────────────────────────────────────────────────
+hero_section(
+    title="📊 Project Overview",
+    subtitle="Comprehensive Analysis of Pune Climate Data (1951 – 2024)",
+    detail="Leveraging Advanced Machine Learning for Climate Intelligence",
+    variant="hero-purple",
+)
 
-@st.cache_data
-def load_data():
-    try:
-        df = pd.read_csv('data/pune_climate_with_co2.csv', parse_dates=['date'])
-        results = pd.read_csv('results/test_metrics.csv')
-        return df, results
-    except:
-        return None, None
-
-
-df, results = load_data()
-
-st.markdown("<h1 style='text-align: center; color: #27ae60;'>📊 Project Overview</h1>", unsafe_allow_html=True)
-st.markdown(
-    "<p style='text-align: center; font-size: 1.2rem; color: #7f8c8d;'>Comprehensive Analysis of 73 Years of Climate Data</p>",
-    unsafe_allow_html=True)
-
+# ── Dataset Insights ─────────────────────────────────────────────────────────
 if df is not None:
-    # Dataset Summary
-    st.markdown("<div class='section-header'>📁 Dataset Information</div>", unsafe_allow_html=True)
+    st.markdown("### 📁 Dataset Insights")
 
-    col1, col2, col3, col4 = st.columns(4)
-
-    with col1:
-        st.markdown(f"""
-        <div class='metric-card' style='text-align: center;'>
-            <h3 style='color: #3498db; margin: 0;'>📅</h3>
-            <h2 style='margin: 0.5rem 0;'>{len(df):,}</h2>
-            <p style='color: #7f8c8d; margin: 0;'>Total Records</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with col2:
-        st.markdown(f"""
-        <div class='metric-card' style='text-align: center;'>
-            <h3 style='color: #e74c3c; margin: 0;'>🌡️</h3>
-            <h2 style='margin: 0.5rem 0;'>{df['temp_C'].mean():.1f}°C</h2>
-            <p style='color: #7f8c8d; margin: 0;'>Avg Temperature</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with col3:
-        st.markdown(f"""
-        <div class='metric-card' style='text-align: center;'>
-            <h3 style='color: #9b59b6; margin: 0;'>💧</h3>
-            <h2 style='margin: 0.5rem 0;'>{df['humidity_pct'].mean():.1f}%</h2>
-            <p style='color: #7f8c8d; margin: 0;'>Avg Humidity</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with col4:
-        st.markdown(f"""
-        <div class='metric-card' style='text-align: center;'>
-            <h3 style='color: #16a085; margin: 0;'>🌧️</h3>
-            <h2 style='margin: 0.5rem 0;'>{df['rainfall_mm'].mean():.1f}mm</h2>
-            <p style='color: #7f8c8d; margin: 0;'>Avg Rainfall</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-    # Time Range
-    st.markdown("<div class='section-header'>⏰ Temporal Coverage</div>", unsafe_allow_html=True)
-    st.markdown(f"""
-    <div class='metric-card'>
-        <p style='font-size: 1.1rem; margin: 0;'>
-            <strong>Start Date:</strong> {df['date'].min().strftime('%B %d, %Y')} &nbsp;&nbsp;|&nbsp;&nbsp;
-            <strong>End Date:</strong> {df['date'].max().strftime('%B %d, %Y')} &nbsp;&nbsp;|&nbsp;&nbsp;
-            <strong>Duration:</strong> {(df['date'].max() - df['date'].min()).days // 365} Years
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Climate Trends
-    st.markdown("<div class='section-header'>📈 Long-term Climate Trends</div>", unsafe_allow_html=True)
-
-    monthly = df.set_index('date').resample('YS').mean().reset_index()
-
-    fig = go.Figure()
-
-    fig.add_trace(go.Scatter(
-        x=monthly['date'], y=monthly['temp_C'],
-        mode='lines+markers', name='Temperature',
-        line=dict(color='#e74c3c', width=3),
-        marker=dict(size=6)
-    ))
-
-    fig.add_trace(go.Scatter(
-        x=monthly['date'], y=monthly['humidity_pct'],
-        mode='lines+markers', name='Humidity',
-        line=dict(color='#3498db', width=3),
-        marker=dict(size=6),
-        yaxis='y2'
-    ))
-
-    fig.update_layout(
-        template='plotly_white',
-        height=500,
-        title='Yearly Averages: Temperature & Humidity',
-        xaxis=dict(title='Year'),
-        yaxis=dict(title='Temperature (°C)', titlefont=dict(color='#e74c3c')),
-        yaxis2=dict(title='Humidity (%)', overlaying='y', side='right', titlefont=dict(color='#3498db')),
-        hovermode='x unified',
-        legend=dict(x=0.5, y=1.1, orientation='h', xanchor='center')
-    )
-
-    st.plotly_chart(fig, use_container_width=True)
-
-# Model Performance
-if results is not None and not results.empty:
-    st.markdown("<div class='section-header'>🏆 Model Performance Summary</div>", unsafe_allow_html=True)
-
-    best = results.iloc[0]
-
-    col1, col2 = st.columns([1, 2])
-
-    with col1:
-        st.markdown(f"""
-        <div class='metric-card' style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;'>
-            <h3 style='margin: 0; color: white;'>🥇 Best Model</h3>
-            <h1 style='margin: 1rem 0; color: white;'>{best['Model']}</h1>
-            <p style='margin: 0.5rem 0; font-size: 1.2rem;'>RMSE: <strong>{best['RMSE']}°C</strong></p>
-            <p style='margin: 0.5rem 0; font-size: 1.2rem;'>R²: <strong>{best['R2']}</strong></p>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with col2:
-        fig = go.Figure()
-        colors = ['#27ae60', '#3498db', '#e67e22', '#e74c3c']
-
-        fig.add_trace(go.Bar(
-            x=results['Model'],
-            y=results['R2'],
-            marker=dict(color=colors[:len(results)]),
-            text=results['R2'].round(3),
-            textposition='outside'
-        ))
-
-        fig.update_layout(
-            template='plotly_white',
-            height=300,
-            title='Model R² Score Comparison',
-            yaxis=dict(title='R² Score', range=[0, 1]),
-            showlegend=False
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        st.markdown(
+            gradient_card("📅 Records", f"{len(df):,}", "Daily measurements", "gc-purple"),
+            unsafe_allow_html=True,
+        )
+    with c2:
+        st.markdown(
+            gradient_card("🌡️ Avg Temp", f"{df['temp_C'].mean():.1f}°C",
+                          f"Range: {df['temp_C'].min():.1f} – {df['temp_C'].max():.1f}°C", "gc-pink"),
+            unsafe_allow_html=True,
+        )
+    with c3:
+        st.markdown(
+            gradient_card("💧 Avg Humidity", f"{df['humidity_pct'].mean():.1f}%",
+                          "Relative humidity", "gc-blue"),
+            unsafe_allow_html=True,
+        )
+    with c4:
+        st.markdown(
+            gradient_card("🌧️ Avg Rainfall", f"{df['rainfall_mm'].mean():.1f} mm",
+                          "Daily average", "gc-green"),
+            unsafe_allow_html=True,
         )
 
+    # ── Temporal Coverage & Key Insights ──────────────────────────────────────
+    st.markdown("---")
+    left, right = st.columns(2)
+
+    with left:
+        st.markdown("#### ⏰ Temporal Coverage")
+        n_years = (df["date"].max() - df["date"].min()).days // 365
+        st.metric("Start Date", df["date"].min().strftime("%B %d, %Y"))
+        st.metric("End Date", df["date"].max().strftime("%B %d, %Y"))
+        st.metric("Total Duration", f"{n_years} Years")
+
+    with right:
+        st.markdown("#### 🔍 Key Insights")
+        temp_trend = "Increasing 📈" if df["temp_C"].iloc[-365:].mean() > df["temp_C"].iloc[:365].mean() else "Stable"
+        co2_max = df["co2_ppm"].max() if "co2_ppm" in df.columns else 0
+        st.metric("Temperature Trend", temp_trend)
+        st.metric("Peak Temperature", f"{df['temp_C'].max():.1f}°C")
+        st.metric("Max CO₂ Level", f"{co2_max:.0f} ppm")
+
+    # ── Long-term Climate Trends ──────────────────────────────────────────────
+    st.markdown("### 📈 Long-term Climate Trends")
+    st.info("📊 **Insight:** Yearly aggregated climate patterns over seven decades.")
+
+    yearly = df.set_index("date").resample("YS").mean().reset_index()
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=yearly["date"], y=yearly["temp_C"],
+        mode="lines+markers", name="Temperature",
+        line=dict(color="#e74c3c", width=3),
+        fill="tozeroy", fillcolor="rgba(231,76,60,0.1)",
+    ))
+    fig.add_trace(go.Scatter(
+        x=yearly["date"], y=yearly["humidity_pct"],
+        mode="lines+markers", name="Humidity",
+        line=dict(color="#3498db", width=3),
+        yaxis="y2",
+    ))
+    fig.update_layout(
+        template="plotly_white", height=500,
+        title="Yearly Averages: Temperature & Humidity",
+        xaxis_title="Year",
+        yaxis=dict(title="Temperature (°C)", titlefont=dict(color="#e74c3c")),
+        yaxis2=dict(title="Humidity (%)", overlaying="y", side="right", titlefont=dict(color="#3498db")),
+        hovermode="x unified",
+        legend=dict(orientation="h", x=0.5, xanchor="center", y=1.12),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+    # ── Seasonal Analysis ─────────────────────────────────────────────────────
+    st.markdown("### 🌤️ Seasonal Analysis")
+    s1, s2, s3 = st.columns(3)
+    summer = df[df["date"].dt.month.isin([3, 4, 5])]["temp_C"].mean()
+    monsoon = df[df["date"].dt.month.isin([6, 7, 8, 9])]["rainfall_mm"].mean()
+    winter = df[df["date"].dt.month.isin([12, 1, 2])]["temp_C"].mean()
+
+    with s1:
+        st.markdown(gradient_card("☀️ Summer", f"{summer:.1f}°C", "Mar – May Average", "gc-orange"), unsafe_allow_html=True)
+    with s2:
+        st.markdown(gradient_card("🌧️ Monsoon", f"{monsoon:.1f} mm", "Jun – Sep Rainfall", "gc-ocean"), unsafe_allow_html=True)
+    with s3:
+        st.markdown(gradient_card("❄️ Winter", f"{winter:.1f}°C", "Dec – Feb Average", "gc-teal"), unsafe_allow_html=True)
+
+# ── Model Performance ────────────────────────────────────────────────────────
+if results is not None and not results.empty:
+    st.markdown("### 🏆 Model Performance Summary")
+    best = results.iloc[0]
+
+    left, right = st.columns([1, 2])
+    with left:
+        st.markdown(
+            f"<div class='gradient-card gc-purple'>"
+            f"<h3>🥇 Champion Model</h3>"
+            f"<h2>{best['Model']}</h2>"
+            f"<p>RMSE: {best['RMSE']}°C · MAE: {best['MAE']}°C · R²: {best['R2']}</p>"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
+
+    with right:
+        colors = ["#27ae60", "#3498db", "#f39c12", "#e74c3c", "#9b59b6", "#1abc9c"]
+        fig = go.Figure()
+        fig.add_trace(go.Bar(
+            x=results["Model"], y=results["R2"],
+            marker=dict(color=colors[: len(results)]),
+            text=results["R2"].round(3), textposition="outside",
+        ))
+        fig.update_layout(
+            template="plotly_white", height=350,
+            title="R² Score Comparison (higher is better)",
+            yaxis=dict(range=[0, 1]),
+            showlegend=False,
+        )
         st.plotly_chart(fig, use_container_width=True)
 
-st.markdown("---")
-st.markdown(
-    "<p style='text-align: center; color: #95a5a6;'>Built with Streamlit & Plotly | Climate Intelligence Platform</p>",
-    unsafe_allow_html=True)
+    st.markdown("#### 📊 Detailed Performance")
+    st.dataframe(
+        results.style.background_gradient(cmap="RdYlGn_r", subset=["RMSE", "MAE"])
+        .background_gradient(cmap="RdYlGn", subset=["R2"])
+        .format({"RMSE": "{:.4f}", "MAE": "{:.4f}", "R2": "{:.4f}"}),
+        use_container_width=True,
+        height=250,
+    )
+
+elif df is None:
+    empty_state("Data Not Available", "Ensure `data/pune_climate_with_co2.csv` exists.")
+
+# ── Footer ────────────────────────────────────────────────────────────────────
+footer(
+    text="Built with Streamlit & Plotly | Climate Intelligence Platform",
+    sub="Powered by Advanced Machine Learning & Data Science",
+)

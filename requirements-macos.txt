@@ -1,0 +1,19 @@
+# Requirements for macOS (Apple Silicon M1/M2/M3)
+# Use with Python 3.10 or 3.11 for best TensorFlow compatibility
+
+numpy==1.26.4
+pandas==2.2.2
+scipy==1.11.4
+scikit-learn==1.5.1
+xgboost==2.0.3
+
+# TensorFlow for Apple Silicon — optimised for Metal GPU acceleration
+tensorflow-macos==2.16.1
+tensorflow-metal==1.1.0
+
+plotly==5.18.0
+streamlit==1.31.0
+pyyaml==6.0.1
+joblib==1.3.2
+requests>=2.31.0
+flask>=3.0.0

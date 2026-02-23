@@ -1,5 +1,22 @@
-# fake_iot_sensor.py
-from flask import Flask, jsonify
+"""
+Fake IoT Sensor — REST API demo.
+
+Simulates a weather sensor station for Pune, returning random
+but realistic climate readings.  Used by the Forecast page's
+"IoT Sensor (REST)" data source.
+
+Usage:
+    python fake_iot_sensor.py        # starts on http://localhost:5001
+    curl localhost:5001/iot/latest    # JSON sensor reading
+"""
+
+try:
+    from flask import Flask, jsonify
+except ImportError:
+    raise SystemExit(
+        "Flask is required: pip install flask\n"
+        "Or install all deps: pip install -r requirements.txt"
+    )
 import random
 
 app = Flask(__name__)

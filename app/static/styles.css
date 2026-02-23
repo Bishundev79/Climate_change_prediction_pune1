@@ -24,6 +24,31 @@
     color: white !important;
 }
 
+/* ── Sidebar Selectbox & Dropdown Visibility Fix ─────────────────────────── */
+[data-testid="stSidebar"] [data-baseweb="select"] *,
+[data-testid="stSidebar"] [data-baseweb="select"] div,
+[data-testid="stSidebar"] [data-baseweb="select"] span,
+[data-testid="stSidebar"] [data-baseweb="select"] input,
+[data-testid="stSidebar"] [data-baseweb="select"] p {
+    color: #2c3e50 !important;
+}
+
+[data-testid="stSidebar"] [data-baseweb="select"] > div {
+    background-color: #ffffff !important;
+}
+
+[data-testid="stSidebar"] [data-baseweb="select"] svg {
+    fill: #2c3e50 !important;
+}
+
+/* Dropdown menu items */
+[data-baseweb="popover"] li,
+[data-baseweb="popover"] li *,
+[data-baseweb="menu"] li,
+[data-baseweb="menu"] li * {
+    color: #2c3e50 !important;
+}
+
 /* ── Hero Section ──────────────────────────────────────────────────────────── */
 .hero {
     background: linear-gradient(120deg, #2ecc71 0%, #27ae60 100%);

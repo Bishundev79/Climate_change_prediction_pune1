@@ -49,3 +49,8 @@ build/
 dist/
 *.egg-info/
 .aider*
+data/.chroma_db/
+
+# RAG Backend
+data/.chroma_db/
+data/chat_history/

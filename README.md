@@ -11,9 +11,10 @@ Advanced ML & Deep Learning system for climate forecasting using 73 years of his
 
 A comprehensive climate prediction system that:
 
-- Analyses 73 years of historical climate data from Pune, Maharashtra
-- Trains **6 AI models** (2 ML + 2 DL + 2 Ensembles) for temperature forecasting
+- Analyses 40 years of historical climate data from Pune, Maharashtra (1984-2024)
+- Trains **6 AI models** (2 ML + 2 DL + 2 Ensembles) for multivariate forecasting (predicting temperature, humidity, rainfall, and solar radiation)
 - Provides an interactive multi-page Streamlit dashboard with real-time predictions
+- Features a **RAG-powered Climate Assistant** to query unstructured historical text data
 - Supports 4 data-source inputs: Manual, IoT Sensor, CSV, and live Open-Meteo API
 - Fully **config-driven** — all hyper-parameters live in `config.yaml`, zero code edits required
 
@@ -40,6 +41,7 @@ A comprehensive climate prediction system that:
 | **Model Arena** | Side-by-side model comparison with metrics |
 | **Forecast** | Real predictions using trained models with confidence intervals |
 | **Benchmark** | RMSE / MAE / R² comparison across all 6 models |
+| **Climate Assistant** | RAG-powered chatbot to query loaded documents (`data/documents/`) |
 
 ### Advanced Feature Engineering
 
@@ -55,12 +57,12 @@ Historical climate data from Pune (1951–2024):
 | Feature | Description |
 | --- | --- |
 | `temp_C` | Average temperature (°C) — **target variable** |
-| `humidity_pct` | Relative humidity (%) |
-| `rainfall_mm` | Monthly rainfall (mm) |
-| `solar_MJ` | Solar radiation (MJ/m²) |
+| `humidity_pct` | Relative humidity (%) — **target variable** |
+| `rainfall_mm` | Daily rainfall (mm) — **target variable** |
+| `solar_MJ` | Solar radiation (MJ/m²) — **target variable** |
 | `co2_ppm` | Atmospheric CO₂ (ppm) |
 
-**Records**: ~27,000 daily observations → resampled to monthly
+**Records**: ~14,000 daily observations (filtered to post-1984 where full records exist)
 
 ## 🛠️ Installation
 
@@ -99,7 +101,7 @@ python train.py
 
 This will:
 
-- Process and prepare the climate data (monthly resampling, imputation)
+- Process and prepare the climate data (daily data, drop pre-1984, imputation)
 - Train XGBoost, Random Forest, CNN-LSTM, and Transformer models
 - Compute ML Ensemble and DL Ensemble predictions
 - Save trained models to `models/`
@@ -138,21 +140,24 @@ Climate_change_prediction_pune1/
 │   │   ├── 02__Data_Explorer.py  # Interactive charts
 │   │   ├── 03__Model_Arena.py    # Model comparison
 │   │   ├── 04__Forecast.py       # Real-time predictions
-│   │   └── 05__Benchmark.py      # Performance benchmarks
+│   │   ├── 05__Benchmark.py      # Performance benchmarks
+│   │   └── 06__Climate_Assistant.py # RAG Chatbot
 │   ├── static/
 │   │   └── styles.css            # Centralised CSS (zero inline styles)
 │   └── utils/
 │       └── shared.py             # Reusable UI components & helpers
 ├── data/
-│   └── pune_climate_with_co2.csv # 73 years of climate data
+│   ├── pune_climate_with_co2.csv # 40 years of climate data
+│   └── documents/                # RAG Knowledge Base (place PDFs/TXT here)
 ├── src/
 │   ├── config.py                 # YAML-driven configuration singleton
-│   ├── data_pipeline.py          # Data loading, resampling, splitting
+│   ├── data_pipeline.py          # Data loading, dropping pre-1984, splitting
 │   ├── feature_engine.py         # Lag, rolling, cyclical features
 │   ├── ml_models.py              # XGBoost + Random Forest wrappers
 │   ├── dl_models.py              # CNN-LSTM + Transformer wrappers
 │   ├── evaluator.py              # RMSE, MAE, R² evaluation
-│   └── logger.py                 # Centralised logging
+│   ├── logger.py                 # Centralised logging
+│   └── rag_engine.py             # LangChain/ChromaDB RAG backend
 ├── models/                       # Saved model artefacts (.pkl, .keras)
 ├── results/                      # Metrics CSVs & feature importances
 ├── config.yaml                   # All hyper-parameters (single source of truth)
@@ -173,7 +178,7 @@ Climate_change_prediction_pune1/
 | **DL Ensemble** | 2.0970 | 1.6321 | 0.5483 |
 | **Transformer** | 3.1176 | 2.4649 | 0.0016 |
 
-> **Note**: ML models significantly outperform DL models on this dataset due to the relatively small sample size (~800 monthly records after resampling). The Transformer's poor R² demonstrates that complex architectures aren't always better — a finding worth discussing.
+> **Note**: The Transformer's poor R² demonstrates that complex architectures aren't always better for tabular time-series without substantial tuning — a finding worth discussing.
 
 ## 🔧 Configuration
 
@@ -201,7 +206,7 @@ models:
 ### Data Pipeline
 
 1. Load daily climate CSV (1951–2024)
-2. Resample to monthly frequency (aggregation per feature)
+2. Filter to post-1984 data where full records exist
 3. Impute missing values via linear interpolation + back-fill
 4. Chronological split: 70% train / 15% validation / 15% test
 

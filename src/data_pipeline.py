@@ -20,7 +20,6 @@ class DataPipeline:
     Responsibilities
     ----------------
     * Load raw daily CSV data.
-    * Resample to monthly frequency.
     * Impute missing values via linear interpolation + back-fill.
     * Split chronologically into train / validation / test.
     """

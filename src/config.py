@@ -30,7 +30,7 @@ class Config:
     MODEL_DIR: Path = BASE_DIR / "models"
     RESULTS_DIR: Path = BASE_DIR / "results"
 
-    TARGET: str = "temp_C"
+    TARGETS: Optional[List[str]] = None
     DATE_COL: str = "date"
     FEATURES: Optional[List[str]] = None
 
@@ -49,22 +49,24 @@ class Config:
     MODEL_PARAMS: Dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
+        if self.TARGETS is None:
+            self.TARGETS = ["temp_C", "humidity_pct", "rainfall_mm", "solar_MJ"]
         if self.FEATURES is None:
             self.FEATURES = ["temp_C", "humidity_pct", "rainfall_mm", "solar_MJ", "co2_ppm"]
         if self.LAG_FEATURES is None:
-            self.LAG_FEATURES = [1, 6, 12]
+            self.LAG_FEATURES = [1, 7, 30]
         if self.ROLLING_WINDOWS is None:
-            self.ROLLING_WINDOWS = [3, 6, 12]
+            self.ROLLING_WINDOWS = [7, 30, 90]
         self.MODEL_DIR.mkdir(exist_ok=True)
         self.RESULTS_DIR.mkdir(exist_ok=True)
 
     @classmethod
-    def from_yaml(cls, yaml_path: Optional[str] = None) -> "Config":
+    def from_yaml(cls, yaml_path: Optional[str | Path] = None) -> "Config":
         """Load configuration from a YAML file.
 
         Parameters
         ----------
-        yaml_path : str or None
+        yaml_path : str, Path, or None
             Path to the YAML file.  Defaults to ``config.yaml`` in
             the project root.
 
@@ -75,14 +77,16 @@ class Config:
         if yaml_path is None:
             yaml_path = Path(__file__).parent.parent / "config.yaml"
 
-        if not os.path.exists(yaml_path):
-            raise FileNotFoundError(f"Config file not found: {yaml_path}")
+        resolved = Path(yaml_path)
 
-        with open(yaml_path, encoding="utf-8") as fh:
+        if not resolved.exists():
+            raise FileNotFoundError(f"Config file not found: {resolved}")
+
+        with open(resolved, encoding="utf-8") as fh:
             cfg = yaml.safe_load(fh)
 
         return cls(
-            TARGET=cfg["data"]["target"],
+            TARGETS=cfg["data"].get("targets", [cfg["data"].get("target")]),
             DATE_COL=cfg["data"]["date_col"],
             FEATURES=cfg["data"]["features"],
             TEST_SIZE=cfg["training"]["test_size"],

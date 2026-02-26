@@ -5,7 +5,11 @@ project:
 
 data:
   file_path: "data/pune_climate_with_co2.csv"
-  target: "temp_C"
+  targets:
+    - temp_C
+    - humidity_pct
+    - rainfall_mm
+    - solar_MJ
   date_col: "date"
   features:
     - temp_C
@@ -18,12 +22,12 @@ training:
   test_size: 0.15             # fraction of data for test split
   val_size: 0.15              # fraction of data for validation split
   random_state: 42
-  lookback: 24                # months of history for DL sequence input
-  batch_size: 32
-  epochs: 200
-  patience: 25                # early stopping patience (epochs)
-  lag_features: [1, 6, 12]    # lag offsets in months
-  rolling_windows: [3, 6, 12] # rolling-mean window sizes in months
+  lookback: 60                # Days of history for DL sequence input
+  batch_size: 128
+  epochs: 15
+  patience: 3                # early stopping patience (epochs)
+  lag_features: [1, 7, 30]    # lag offsets in days
+  rolling_windows: [7, 30, 90] # rolling-mean window sizes in days
 
 # ── Model hyperparameters ──────────────────────────────────────────────────
 # These values are read by src/ml_models.py and src/dl_models.py at
@@ -41,12 +45,12 @@ models:
     min_samples_leaf: 2
 
   cnn_lstm:
-    cnn_filters: [64, 128, 64]
-    lstm_units: [128, 64]
+    cnn_filters: [32, 32]
+    lstm_units: [32]
 
   transformer:
-    d_model: 128
-    num_heads: 8
-    num_layers: 4
-    dff: 512
+    d_model: 32
+    num_heads: 2
+    num_layers: 1
+    dff: 64
     dropout: 0.2

@@ -42,14 +42,7 @@ with st.sidebar:
         st.metric("Best RMSE", f"{best['RMSE']}°C")
         st.metric("Best R²", f"{best['R2']}")
 
-    st.markdown("---")
-    st.markdown("### 🎯 Navigation")
-    st.page_link("streamlit_app.py", label="🏠 Home", icon="🏠")
-    st.page_link("pages/01__Overview.py", label="📊 Overview", icon="📊")
-    st.page_link("pages/02__Data_Explorer.py", label="🔍 Data Explorer", icon="🔍")
-    st.page_link("pages/03__Model_Arena.py", label="🤖 Model Arena", icon="🤖")
-    st.page_link("pages/04__Forecast.py", label="🔮 Forecast", icon="🔮")
-    st.page_link("pages/05__Benchmark.py", label="⚖️ Benchmark", icon="⚖️")
+
 
 # ── Hero ──────────────────────────────────────────────────────────────────────
 hero_section(
@@ -71,79 +64,41 @@ best_rmse = f"{results.iloc[0]['RMSE']}°C" if not results.empty else "—"
 n_models = str(len(results)) if not results.empty else "0"
 
 with c1:
-    st.markdown(gradient_card("📅 Data Span", f"{n_years} Years", "1951 – 2024", "gc-purple"), unsafe_allow_html=True)
+    st.markdown(gradient_card("📅 Data Span", f"{n_years} Years", "1951 – 2024", "emerald"), unsafe_allow_html=True)
 with c2:
-    st.markdown(gradient_card("🤖 Models", f"{n_models} AI Models", "ML + DL + Ensembles", "gc-pink"), unsafe_allow_html=True)
+    st.markdown(gradient_card("🤖 Models", "4 AI Models", "XGBoost, RF, CNN-LSTM, Transformer", "purple"), unsafe_allow_html=True)
 with c3:
-    st.markdown(gradient_card("🎯 Best RMSE", best_rmse, "Top model accuracy", "gc-blue"), unsafe_allow_html=True)
+    st.markdown(gradient_card("🎯 Best RMSE", best_rmse, "Top model accuracy", "blue"), unsafe_allow_html=True)
 with c4:
-    st.markdown(gradient_card("📊 Records", n_records, "Daily data points", "gc-green"), unsafe_allow_html=True)
+    st.markdown(gradient_card("📊 Records", n_records, "Daily data points", "coral"), unsafe_allow_html=True)
 
-# ── Model Leaderboard ────────────────────────────────────────────────────────
-st.markdown("### 🏆 Model Performance Leaderboard")
+# ── Platform Navigation ──────────────────────────────────────────────────────
+st.markdown("### 🚀 Discover the Platform")
 
-if not results.empty:
-    sorted_res = results.sort_values("RMSE")
-    colors = ["#27ae60", "#3498db", "#e67e22", "#e74c3c", "#9b59b6", "#1abc9c"]
+st.markdown("""
+<style>
+.nav-desc { color: #9ca3af; font-size: 0.95rem; margin-top: -10px; margin-bottom: 20px; margin-left: 35px; }
+</style>
+""", unsafe_allow_html=True)
 
-    fig = go.Figure()
-    fig.add_trace(
-        go.Bar(
-            x=sorted_res["Model"],
-            y=sorted_res["RMSE"],
-            marker=dict(color=colors[: len(sorted_res)]),
-            text=sorted_res["RMSE"].round(4),
-            textposition="outside",
-            name="RMSE (°C)",
-        )
-    )
-    fig.update_layout(
-        template="plotly_white",
-        height=400,
-        title="Model RMSE Comparison (lower is better)",
-        xaxis_title="Model",
-        yaxis_title="RMSE (°C)",
-        showlegend=False,
-    )
-    st.plotly_chart(fig, use_container_width=True)
+n1, n2 = st.columns(2)
 
-    st.markdown("#### 📋 Detailed Metrics")
-    st.dataframe(
-        sorted_res.style.background_gradient(cmap="RdYlGn_r", subset=["RMSE", "MAE"])
-        .background_gradient(cmap="RdYlGn", subset=["R2"])
-        .format({"RMSE": "{:.4f}", "MAE": "{:.4f}", "R2": "{:.4f}"}),
-        use_container_width=True,
-        height=220,
-    )
-else:
-    st.info("⚠️ No model results found. Train models first: `python train.py`")
+with n1:
+    st.page_link("pages/01__Overview.py", label="**📊 Climate Data Overview**", icon="📊")
+    st.markdown("<p class='nav-desc'>Explore 73 years of historical averages, seasonal changes, and warming trends.</p>", unsafe_allow_html=True)
+    
+    st.page_link("pages/02__Data_Explorer.py", label="**🔍 Interactive Data Explorer**", icon="🔍")
+    st.markdown("<p class='nav-desc'>Filter raw data, view correlation heatmaps, and analyze distributions.</p>", unsafe_allow_html=True)
+    
+    st.page_link("pages/05__Benchmark.py", label="**⚖️ Industry Benchmarks**", icon="⚖️")
+    st.markdown("<p class='nav-desc'>See how our AI models compare against global meteorological services.</p>", unsafe_allow_html=True)
 
-# ── Temperature Trend ─────────────────────────────────────────────────────────
-if climate_df is not None:
-    st.markdown("### 🌡️ Climate Trends Overview")
-    monthly = climate_df.set_index("date").resample("MS").mean()
+with n2:
+    st.page_link("pages/03__Model_Arena.py", label="**🤖 Model Arena**", icon="🤖")
+    st.markdown("<p class='nav-desc'>Dive into architecture specs, head-to-head metrics, and feature importance.</p>", unsafe_allow_html=True)
 
-    fig = go.Figure()
-    fig.add_trace(
-        go.Scatter(
-            x=monthly.index,
-            y=monthly["temp_C"],
-            mode="lines",
-            name="Temperature",
-            line=dict(color="#e74c3c", width=2),
-            fill="tozeroy",
-            fillcolor="rgba(231, 76, 60, 0.1)",
-        )
-    )
-    fig.update_layout(
-        template="plotly_white",
-        height=400,
-        title="Temperature Trend (1951 – 2024)",
-        xaxis_title="Year",
-        yaxis_title="Temperature (°C)",
-        hovermode="x unified",
-    )
-    st.plotly_chart(fig, use_container_width=True)
+    st.page_link("pages/04__Forecast.py", label="**🔮 Next-Gen Forecast**", icon="🔮")
+    st.markdown("<p class='nav-desc'>Generate future climate predictions using our advanced Deep Learning models.</p>", unsafe_allow_html=True)
 
 # ── Footer ────────────────────────────────────────────────────────────────────
 footer(

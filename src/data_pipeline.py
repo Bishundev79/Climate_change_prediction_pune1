@@ -25,16 +25,8 @@ class DataPipeline:
     * Split chronologically into train / validation / test.
     """
 
-    AGGREGATION_MAP: dict[str, str] = {
-        "temp_C": "mean",
-        "humidity_pct": "mean",
-        "rainfall_mm": "sum",
-        "solar_MJ": "mean",
-        "co2_ppm": "mean",
-    }
-
     def load_and_prepare(self) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-        """Load CSV, resample monthly, impute, and split.
+        """Load CSV, filter post-1984, impute, and split.
 
         Returns
         -------
@@ -44,15 +36,11 @@ class DataPipeline:
         df = pd.read_csv(config.DATA_PATH)
         df[config.DATE_COL] = pd.to_datetime(df[config.DATE_COL])
 
-        df_monthly = (
-            df.set_index(config.DATE_COL)
-            .resample("MS")
-            .agg(self.AGGREGATION_MAP)
-            .reset_index()
-        )
+        # Drop pre-1984 data where temperature/humidity/solar were not recorded
+        df = df[df[config.DATE_COL].dt.year >= 1984].copy()
 
-        # Impute: linear interpolation then back-fill remaining edge NaNs
-        df_clean = df_monthly.interpolate(method="linear").bfill()
+        # Impute: linear interpolation then back-fill and forward-fill remaining edge NaNs
+        df_clean = df.interpolate(method="linear").bfill().ffill()
 
         return self._split_data(df_clean)
 

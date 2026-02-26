@@ -1,9 +1,9 @@
 """
-Page 4 — Climate Forecast Engine.
+Page 4 — Climate Forecast Engine (Multi-Model, Multi-Target).
 
 Loads **actual trained models** and generates real predictions
-using the project's feature-engineering pipeline.  Supports ML
-models (.pkl), DL models (.keras), and live ensemble inference.
+using the project's feature-engineering pipeline. Supports ML
+models (.pkl) and DL models (.keras).
 
 Data-source inputs: manual, IoT, CSV, Open-Meteo API.
 """
@@ -11,13 +11,21 @@ Data-source inputs: manual, IoT, CSV, Open-Meteo API.
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+import sys
 from pathlib import Path
+
+# Add project root to sys.path so we can import from `src`
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.append(str(PROJECT_ROOT))
 
 import numpy as np
 import pandas as pd
 import streamlit as st
 import plotly.graph_objects as go
 
+from src.config import config
+from utils.charts import render_forecast_charts
 from utils.shared import (
     load_css,
     load_results,
@@ -47,24 +55,25 @@ def _fetch_iot_sensor() -> dict | None:
 
 
 def _fetch_latest_csv() -> dict | None:
-    """Compute latest-month averages from the historical CSV."""
+    """Compute latest day averages from the historical CSV."""
     try:
         df = pd.read_csv(DATA_DIR / "pune_climate_with_co2.csv", parse_dates=["date"])
         last_date = df["date"].max()
-        month_mask = (df["date"].dt.month == last_date.month) & (df["date"].dt.year == last_date.year)
-        monthly = df.loc[month_mask]
+        day_mask = (df["date"] == last_date)
+        daily = df.loc[day_mask]
         return {
-            "temp_C": float(monthly["temp_C"].mean()),
-            "humidity_pct": float(monthly["humidity_pct"].mean()),
-            "rainfall_mm": float(monthly["rainfall_mm"].sum()),
-            "solar_MJ": float(monthly["solar_MJ"].mean()),
+            "temp_C": float(daily["temp_C"].mean()),
+            "humidity_pct": float(daily["humidity_pct"].mean()),
+            "rainfall_mm": float(daily["rainfall_mm"].sum()),
+            "solar_MJ": float(daily["solar_MJ"].mean()),
+            "co2_ppm": float(daily["co2_ppm"].mean()) if "co2_ppm" in daily else 420.0
         }
     except Exception:
         return None
 
 
 def _fetch_openmeteo() -> dict | None:
-    """Fetch last 31 days from Open-Meteo and return monthly aggregates."""
+    """Fetch today's weather from Open-Meteo and return aggregates."""
     try:
         import requests
         resp = requests.get(
@@ -73,7 +82,7 @@ def _fetch_openmeteo() -> dict | None:
                 "latitude": 18.5204, "longitude": 73.8567,
                 "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum,"
                          "relative_humidity_2m_max,relative_humidity_2m_min,shortwave_radiation_sum",
-                "past_days": 31, "timezone": "Asia/Kolkata",
+                "past_days": 1, "timezone": "Asia/Kolkata",
             },
             timeout=5,
         )
@@ -85,10 +94,10 @@ def _fetch_openmeteo() -> dict | None:
         rain = _not_none(d["precipitation_sum"])
         solar = [s * 0.0036 for s in _not_none(d["shortwave_radiation_sum"])]
         return {
-            "temp_C": float(np.mean(temps)),
-            "humidity_pct": float(np.mean(hum)),
-            "rainfall_mm": float(np.sum(rain)),
-            "solar_MJ": float(np.mean(solar)),
+            "temp_C": float(np.mean(temps)) if temps else 25.0,
+            "humidity_pct": float(np.mean(hum)) if hum else 60.0,
+            "rainfall_mm": float(np.sum(rain)) if rain else 0.0,
+            "solar_MJ": float(np.mean(solar)) if solar else 15.0,
         }
     except Exception:
         return None
@@ -99,10 +108,6 @@ def _fetch_openmeteo() -> dict | None:
 # Model type classification
 ML_MODELS = {"XGBoost", "Random Forest"}
 DL_MODELS = {"CNN-LSTM", "Transformer"}
-ENSEMBLE_MAP = {
-    "ML Ensemble": ["XGBoost", "Random Forest"],
-    "DL Ensemble": ["CNN-LSTM", "Transformer"],
-}
 
 _MODEL_FILE_MAP = {
     "XGBoost": "xgboost.pkl",
@@ -117,13 +122,10 @@ def _model_file_exists(name: str) -> bool:
     fname = _MODEL_FILE_MAP.get(name)
     if fname:
         return (MODELS_DIR / fname).exists()
-    # Ensembles have no file — they need their constituents
-    if name in ENSEMBLE_MAP:
-        return all(_model_file_exists(m) for m in ENSEMBLE_MAP[name])
     return False
 
 
-@st.cache_resource(show_spinner="Loading ML model…")
+@st.cache_resource(show_spinner="Loading ML model…", max_entries=2)
 def _load_ml_model(name: str):
     """Load a joblib-persisted scikit-learn / XGBoost model."""
     import joblib
@@ -134,9 +136,9 @@ def _load_ml_model(name: str):
     return None
 
 
-@st.cache_resource(show_spinner="Loading DL model…")
+@st.cache_resource(show_spinner="Loading DL model…", max_entries=2)
 def _load_dl_model(name: str):
-    """Load a Keras .keras checkpoint."""
+    """Load a Keras .keras checkpoint. (Cache invalidated for new 60-shape models)"""
     try:
         from tensorflow import keras
 
@@ -163,59 +165,43 @@ def _load_scalers():
 # ── Main page ─────────────────────────────────────────────────────────────────
 
 results = load_results()
+# No longer filtering rigidly by exact name since CSV might append "(Multi-Target)"
 
 hero_section(
-    title="🔮 Climate Forecast Engine",
-    subtitle="Predict future climate patterns with trained AI models",
-    variant="hero-red",
+    title="🔮 Next-Gen Climate Forecast",
+    subtitle="Multi-target predictive modelling via advanced Deep Learning architectures.",
+    variant="hero-blue",
 )
 
-st.markdown(
-    "<div class='info-box'><p>"
-    "<strong>🎯 Data Sources:</strong> Choose your starting conditions.<br>"
-    "• <strong>Manual</strong> — set values yourself<br>"
-    "• <strong>IoT</strong> — fetch from sensor API<br>"
-    "• <strong>CSV</strong> — latest month from historical data<br>"
-    "• <strong>Open-Meteo</strong> — real-time monthly averages for Pune"
-    "</p></div>",
-    unsafe_allow_html=True,
-)
-
-if not results.empty:
+if True:
     # ── Sidebar ───────────────────────────────────────────────────────────────
     st.sidebar.markdown("## 🎯 Forecast Configuration")
 
-    # Offer all models whose artefacts exist on disk (ML, DL, ensembles)
-    available = [m for m in results["Model"].tolist() if _model_file_exists(m)]
+    # Offer all models whose artefacts exist on disk (ML, DL)
+    available_to_check = list(ML_MODELS) + list(DL_MODELS)
+    available = [m for m in available_to_check if _model_file_exists(m)]
     if not available:
-        available = results["Model"].tolist()  # fallback for display
+        available = available_to_check  # fallback for display
 
     # Group labels for clarity
     def _label(m: str) -> str:
         if m in ML_MODELS:
             return f"🌲 {m} (ML)"
         if m in DL_MODELS:
-            return f"🧠 {m} (Deep Learning)"
-        if m in ENSEMBLE_MAP:
-            return f"🔗 {m}"
+            return f"🧠 {m} (DL)"
         return m
 
-    selected_model = st.sidebar.selectbox(
-        "Select Model", available, format_func=_label,
+    selected_models = st.sidebar.multiselect(
+        "Select Models to Compare", available, default=available[:1], format_func=_label,
     )
-    model_rmse = float(results.loc[results["Model"] == selected_model, "RMSE"].values[0])
-    st.sidebar.metric("RMSE", f"{model_rmse:.4f}°C")
 
-    # Show model type info
-    if selected_model in ENSEMBLE_MAP:
-        members = ", ".join(ENSEMBLE_MAP[selected_model])
-        st.sidebar.info(f"Ensemble = average of {members}")
+    if not selected_models:
+        st.sidebar.warning("Please select at least one model.")
 
     # ── Data source selector ──────────────────────────────────────────────────
-    st.markdown("#### 🗂️ Data Source")
     data_source = st.radio(
-        "Set input values using:",
-        ["Manual Entry", "IoT Sensor (REST)", "CSV: Latest Month", "Open-Meteo API (Live)"],
+        "🗂️ Global Data Source Configuration:",
+        ["Manual Entry", "IoT Sensor (REST)", "CSV: Latest Day", "Open-Meteo API (Live)"],
         horizontal=True,
     )
 
@@ -223,7 +209,7 @@ if not results.empty:
     if data_source == "IoT Sensor (REST)":
         prefill = _fetch_iot_sensor() or {}
         st.info("IoT data loaded." if prefill else "No IoT data available.")
-    elif data_source == "CSV: Latest Month":
+    elif data_source == "CSV: Latest Day":
         prefill = _fetch_latest_csv() or {}
         st.info("CSV data loaded." if prefill else "Could not read CSV.")
     elif data_source == "Open-Meteo API (Live)":
@@ -231,212 +217,154 @@ if not results.empty:
         st.info("Live data loaded." if prefill else "Could not fetch live weather.")
 
     # ── Input sliders ─────────────────────────────────────────────────────────
-    st.markdown("### 📊 Input Parameters")
     left, right = st.columns(2)
 
     with left:
-        st.markdown("<div class='forecast-card'><h3>🌡️ Current Conditions</h3>", unsafe_allow_html=True)
-        temp_current = st.slider("Avg Monthly Temperature (°C)", 15.0, 35.0,
-                                 float(round(prefill.get("temp_C", 24.5), 2)), 0.5)
-        humidity = st.slider("Avg Monthly Humidity (%)", 20.0, 95.0,
-                             float(round(prefill.get("humidity_pct", 65.0), 2)), 1.0)
-        rainfall = st.slider("Monthly Rainfall (mm)", 0.0, 500.0,
-                             float(round(prefill.get("rainfall_mm", 50.0), 1)), 10.0)
-        st.markdown("</div>", unsafe_allow_html=True)
+        with st.container(border=True):
+            st.subheader("🌡️ Current Conditions")
+            temp_current = st.slider("Daily Temperature (°C)", 15.0, 45.0,
+                                     float(round(prefill.get("temp_C", 28.5), 2)), 0.5)
+            humidity = st.slider("Daily Humidity (%)", 10.0, 95.0,
+                                 float(round(prefill.get("humidity_pct", 55.0), 2)), 1.0)
+            rainfall = st.slider("Daily Rainfall (mm)", 0.0, 300.0,
+                                 float(round(prefill.get("rainfall_mm", 5.0), 1)), 5.0)
 
     with right:
-        st.markdown("<div class='forecast-card'><h3>☀️ Forecast Settings</h3>", unsafe_allow_html=True)
-        solar = st.slider("Avg Solar Radiation (MJ/m²)", 10.0, 25.0,
-                          float(round(prefill.get("solar_MJ", 18.0), 2)), 0.5)
-        forecast_months = st.slider("Forecast Horizon (months)", 1, 12, 6)
-        start_month = st.selectbox(
-            "Starting Month", list(range(1, 13)),
-            index=datetime.now().month - 1,
-            format_func=lambda m: datetime(2024, m, 1).strftime("%B"),
-        )
-        st.markdown("</div>", unsafe_allow_html=True)
+        with st.container(border=True):
+            st.subheader("☀️ Forecast Settings")
+            solar = st.slider("Daily Solar Radiation (MJ/m²)", 5.0, 30.0,
+                              float(round(prefill.get("solar_MJ", 20.0), 2)), 0.5)
+            co2_latest = getattr(config, "CO2_DEFAULT", 425.0)
+            co2_latest = st.slider("Global CO2 Levels (ppm)", 350.0, 500.0, co2_latest, 1.0)
+            
+            forecast_days = st.slider("Forecast Horizon (Days)", 1, 30, 7)
+            start_date = st.date_input("Starting Date", value=datetime.now().date())
 
     # ── Generate forecast ─────────────────────────────────────────────────────
-    if st.button("🔮 Generate Forecast", type="primary", use_container_width=True):
-        with st.spinner("Running model inference…"):
+    if st.button("🔮 Generate Multi-Target Forecast", type="primary", use_container_width=True) and selected_models:
+        with st.spinner("Running model inference and aggregating multi-targets…"):
 
-            predictions: list[float] = []
-            dates: list[str] = []
-            inference_label = selected_model
-            model_loaded = False
+            dates = [(start_date + timedelta(days=i)).strftime("%Y-%m-%d") for i in range(forecast_days)]
+            
+            # Dictionary to store predictions for each model: {model_name: {target_name: [list of floats]}}
+            model_predictions = {m: {"temp_C": [], "humidity_pct": [], "rainfall_mm": [], "solar_MJ": []} for m in selected_models}
+            
+            sc_X, sc_y = _load_scalers()
 
-            # ── Determine inference strategy ─────────────────────────────
-            if selected_model in ML_MODELS:
-                # ── ML model: flat feature-vector inference ───────────────
-                model = _load_ml_model(selected_model)
-                if model is not None:
-                    model_loaded = True
-                    co2_latest = 420.0
-                    current_temp = temp_current
+            for selected_model in selected_models:
+                # ── Determine inference strategy ─────────────────────────────
+                if selected_model in ML_MODELS:
+                    # ── ML model: flat feature-vector inference ───────────────
+                    model = _load_ml_model(selected_model)
+                    if model is not None:
+                        curr_t = temp_current
+                        curr_h = humidity
+                        curr_r = rainfall
+                        curr_s = solar
 
-                    for i in range(forecast_months):
-                        pred_month = (start_month + i - 1) % 12 + 1
-                        m_sin = np.sin(2 * np.pi * pred_month / 12)
-                        m_cos = np.cos(2 * np.pi * pred_month / 12)
+                        for i in range(forecast_days):
+                            current_dt = start_date + timedelta(days=i)
+                            pred_day = current_dt.timetuple().tm_yday
+                            d_sin = np.sin(2 * np.pi * pred_day / 365.25)
+                            d_cos = np.cos(2 * np.pi * pred_day / 365.25)
 
-                        base = [humidity, rainfall, solar, co2_latest]
-                        lags = [current_temp] * 3 + [humidity] * 3 + [rainfall] * 3 + [solar] * 3 + [co2_latest] * 3
-                        rolls = [current_temp] * 3 + [humidity] * 3 + [rainfall] * 3 + [solar] * 3 + [co2_latest] * 3
-                        cyclic = [pred_month, m_sin, m_cos]
-                        row = np.array(base + lags + rolls + cyclic).reshape(1, -1)
+                            # Features (Daily format, mimicking FeatureEngine.create_features structure)
+                            base = [co2_latest]
+                            # Simple mock for lags/rolls during live inference. 
+                            # In production, these should be drawn from a state array.
+                            lags_t = [curr_t] * len(config.LAG_FEATURES)
+                            lags_h = [curr_h] * len(config.LAG_FEATURES)
+                            lags_r = [curr_r] * len(config.LAG_FEATURES)
+                            lags_s = [curr_s] * len(config.LAG_FEATURES)
+                            lags_c = [co2_latest] * len(config.LAG_FEATURES)
+                            
+                            rolls_t = [curr_t] * len(config.ROLLING_WINDOWS)
+                            rolls_h = [curr_h] * len(config.ROLLING_WINDOWS)
+                            rolls_r = [curr_r] * len(config.ROLLING_WINDOWS)
+                            rolls_s = [curr_s] * len(config.ROLLING_WINDOWS)
+                            rolls_c = [co2_latest] * len(config.ROLLING_WINDOWS)
+                            
+                            cyclic = [pred_day, d_sin, d_cos]
+                            
+                            row = np.array(base + lags_t + lags_h + lags_r + lags_s + lags_c + 
+                                           rolls_t + rolls_h + rolls_r + rolls_s + rolls_c + cyclic).reshape(1, -1)
 
-                        pred = float(model.predict(row)[0])
-                        predictions.append(pred)
-                        dates.append((datetime.now() + timedelta(days=30 * i)).strftime("%b %Y"))
-                        current_temp = pred
+                            # Predict [temp, humidity, rain, solar]
+                            preds = model.predict(row)[0]
+                            
+                            model_predictions[selected_model]["temp_C"].append(float(preds[0]))
+                            model_predictions[selected_model]["humidity_pct"].append(float(preds[1]))
+                            model_predictions[selected_model]["rainfall_mm"].append(float(max(0, preds[2]))) # No negative rain
+                            model_predictions[selected_model]["solar_MJ"].append(float(preds[3]))
+                            
+                            # Recursively feed output back
+                            curr_t, curr_h, curr_r, curr_s = preds[0], preds[1], max(0, preds[2]), preds[3]
 
-            elif selected_model in DL_MODELS:
-                # ── DL model: sequence-based inference with scaling ───────
-                dl_model = _load_dl_model(selected_model)
-                sc_X, sc_y = _load_scalers()
+                elif selected_model in DL_MODELS:
+                    # ── DL model: sequence-based inference with scaling ───────
+                    dl_model = _load_dl_model(selected_model)
+                    if dl_model is not None and sc_X is not None and sc_y is not None:
+                        lookback = config.LOOKBACK
+                        
+                        curr_t = temp_current
+                        curr_h = humidity
+                        curr_r = rainfall
+                        curr_s = solar
 
-                if dl_model is not None and sc_X is not None and sc_y is not None:
-                    model_loaded = True
-                    co2_latest = 420.0
-                    lookback = 24  # must match config.LOOKBACK
+                        for i in range(forecast_days):
+                            current_dt = start_date + timedelta(days=i)
+                            pred_day = current_dt.timetuple().tm_yday
+                            d_sin = np.sin(2 * np.pi * pred_day / 365.25)
+                            d_cos = np.cos(2 * np.pi * pred_day / 365.25)
+                            
+                            # DL models only use the raw 5 features as sequence inputs, not the 34 engineered features
+                            base = [curr_t, curr_h, curr_r, curr_s, co2_latest]
+                            row = np.array(base).reshape(1, -1)
+                            
+                            # Create a synthetic sequence by repeating the row (simplified for live forecast)
+                            # The scaler sc_X expects the 5-feature row.
+                            seq_row_2d_scaled = sc_X.transform(row)
+                            seq_input = np.tile(seq_row_2d_scaled, (1, lookback, 1))
 
-                    # Build a synthetic history sequence of `lookback` steps
-                    current_temp = temp_current
-                    for i in range(forecast_months):
-                        pred_month = (start_month + i - 1) % 12 + 1
-                        # Features: [temp_C, humidity_pct, rainfall_mm, solar_MJ, co2_ppm]
-                        row = np.array([current_temp, humidity, rainfall, solar, co2_latest])
-                        seq = np.tile(row, (lookback, 1))  # repeat as lookback window
-                        seq_scaled = sc_X.transform(seq)
-                        seq_input = seq_scaled.reshape(1, lookback, -1)
+                            # Predict [temp, humidity, rain, solar]
+                            num_targets = len(config.TARGETS)
+                            # Use direct callable instead of .predict() for massive speedup in loops
+                            import tensorflow as tf
+                            pred_scaled_vec = dl_model(tf.convert_to_tensor(seq_input), training=False).numpy().flatten()
+                            pred_vec = float(sc_y.inverse_transform([[pred_scaled_vec[k] for k in range(num_targets)]])[0, 0])
+                            # Wait, the shape is (1, 4) for inverse_transform
+                            pred_scaled_reshaped = pred_scaled_vec.reshape(1, num_targets)
+                            preds = sc_y.inverse_transform(pred_scaled_reshaped)[0]
 
-                        pred_scaled = dl_model.predict(seq_input, verbose=0).flatten()[0]
-                        pred = float(sc_y.inverse_transform([[pred_scaled]])[0, 0])
-                        predictions.append(pred)
-                        dates.append((datetime.now() + timedelta(days=30 * i)).strftime("%b %Y"))
-                        current_temp = pred
+                            model_predictions[selected_model]["temp_C"].append(float(preds[0]))
+                            model_predictions[selected_model]["humidity_pct"].append(float(preds[1]))
+                            model_predictions[selected_model]["rainfall_mm"].append(float(max(0, preds[2])))
+                            model_predictions[selected_model]["solar_MJ"].append(float(preds[3]))
 
-            elif selected_model in ENSEMBLE_MAP:
-                # ── Ensemble: run members and average ─────────────────────
-                members = ENSEMBLE_MAP[selected_model]
-                member_preds: list[list[float]] = []
-                all_members_loaded = True
-
-                for member in members:
-                    m_preds: list[float] = []
-                    if member in ML_MODELS:
-                        model = _load_ml_model(member)
-                        if model is None:
-                            all_members_loaded = False
-                            break
-                        co2_latest = 420.0
-                        current_temp = temp_current
-                        for i in range(forecast_months):
-                            pred_month = (start_month + i - 1) % 12 + 1
-                            m_sin = np.sin(2 * np.pi * pred_month / 12)
-                            m_cos = np.cos(2 * np.pi * pred_month / 12)
-                            base = [humidity, rainfall, solar, co2_latest]
-                            lags = [current_temp] * 3 + [humidity] * 3 + [rainfall] * 3 + [solar] * 3 + [co2_latest] * 3
-                            rolls = [current_temp] * 3 + [humidity] * 3 + [rainfall] * 3 + [solar] * 3 + [co2_latest] * 3
-                            cyclic = [pred_month, m_sin, m_cos]
-                            row = np.array(base + lags + rolls + cyclic).reshape(1, -1)
-                            pred = float(model.predict(row)[0])
-                            m_preds.append(pred)
-                            current_temp = pred
-                    elif member in DL_MODELS:
-                        dl_model = _load_dl_model(member)
-                        sc_X, sc_y = _load_scalers()
-                        if dl_model is None or sc_X is None or sc_y is None:
-                            all_members_loaded = False
-                            break
-                        co2_latest = 420.0
-                        lookback = 24
-                        current_temp = temp_current
-                        for i in range(forecast_months):
-                            row = np.array([current_temp, humidity, rainfall, solar, co2_latest])
-                            seq = np.tile(row, (lookback, 1))
-                            seq_scaled = sc_X.transform(seq)
-                            seq_input = seq_scaled.reshape(1, lookback, -1)
-                            pred_scaled = dl_model.predict(seq_input, verbose=0).flatten()[0]
-                            pred = float(sc_y.inverse_transform([[pred_scaled]])[0, 0])
-                            m_preds.append(pred)
-                            current_temp = pred
-                    member_preds.append(m_preds)
-
-                if all_members_loaded and member_preds:
-                    model_loaded = True
-                    predictions = list(np.mean(member_preds, axis=0))
-                    dates = [(datetime.now() + timedelta(days=30 * i)).strftime("%b %Y")
-                             for i in range(forecast_months)]
-                    inference_label = f"{selected_model} ({' + '.join(members)})"
-
-            # ── Handle results / fallback ─────────────────────────────────
-            if model_loaded and predictions:
-                st.success(f"✅ Forecast generated using **{inference_label}** (trained model).")
-            else:
-                st.warning(
-                    f"⚠️ Saved artefacts for *{selected_model}* not found. "
-                    "Showing analytical estimate. Run `python train.py` to save models."
-                )
-                current_temp = temp_current
-                for i in range(forecast_months):
-                    pred_month = (start_month + i - 1) % 12 + 1
-                    seasonal = np.sin(2 * np.pi * pred_month / 12) * 3
-                    trend = i * 0.02
-                    pred = current_temp + seasonal + trend
-                    predictions.append(float(pred))
-                    dates.append((datetime.now() + timedelta(days=30 * i)).strftime("%b %Y"))
-
-            # ── Confidence intervals ──────────────────────────────────────
-            ci = 1.96 * model_rmse
-            lower = [p - ci for p in predictions]
-            upper = [p + ci for p in predictions]
+                            # Recursively feed output back
+                            curr_t, curr_h, curr_r, curr_s = preds[0], preds[1], max(0, preds[2]), preds[3]
 
             # ── Summary metrics ───────────────────────────────────────────
-            st.markdown("### 📈 Forecast Results")
-            m1, m2, m3 = st.columns(3)
-            with m1:
-                st.metric("Next Month", f"{predictions[0]:.2f}°C",
-                          delta=f"{predictions[0] - temp_current:+.2f}°C")
-            with m2:
-                st.metric(f"{forecast_months}-Month Avg", f"{np.mean(predictions):.2f}°C")
-            with m3:
-                st.metric("95% CI Width", f"±{ci:.2f}°C")
+            st.success(f"✅ Forecast generated across {len(selected_models)} models for 4 targets.")
 
-            # ── Chart ─────────────────────────────────────────────────────
-            fig = go.Figure()
-            fig.add_trace(go.Scatter(
-                x=dates + dates[::-1], y=upper + lower[::-1],
-                fill="toself", fillcolor="rgba(102,126,234,0.2)",
-                line=dict(color="rgba(255,255,255,0)"),
-                name="95% CI",
-            ))
-            fig.add_trace(go.Scatter(
-                x=dates, y=predictions,
-                mode="lines+markers", name="Predicted Temperature",
-                line=dict(color="#e74c3c", width=3),
-                marker=dict(size=10),
-            ))
-            fig.update_layout(
-                template="plotly_white", height=500,
-                title=f"Temperature Forecast — Next {forecast_months} Months",
-                xaxis_title="Month", yaxis_title="Temperature (°C)",
-                hovermode="x unified",
-                legend=dict(orientation="h", x=0.5, xanchor="center", y=1.12),
-            )
-            st.plotly_chart(fig, use_container_width=True)
+            # Delegate charting to the specialized formatting module per industry standard
+            render_forecast_charts(dates, model_predictions, selected_models, forecast_days)
 
-            # ── Table ─────────────────────────────────────────────────────
-            st.markdown("### 📋 Forecast Table")
-            st.dataframe(
-                pd.DataFrame({
-                    "Month": dates,
-                    "Predicted (°C)": [f"{p:.2f}" for p in predictions],
-                    "Lower 95% (°C)": [f"{l:.2f}" for l in lower],
-                    "Upper 95% (°C)": [f"{u:.2f}" for u in upper],
-                }),
-                use_container_width=True, height=300,
-            )
+            # ── Details Table for Selected Models ──────────────────────────────────────────
+            st.markdown("### 📋 Forecast Details")
+            tabs = st.tabs(selected_models)
+            for i, model in enumerate(selected_models):
+                with tabs[i]:
+                    st.dataframe(
+                        pd.DataFrame({
+                            "Date": dates,
+                            "Temp (°C)": [f"{p:.2f}" for p in model_predictions[model]["temp_C"]],
+                            "Humidity (%)": [f"{p:.2f}" for p in model_predictions[model]["humidity_pct"]],
+                            "Rainfall (mm)": [f"{p:.2f}" for p in model_predictions[model]["rainfall_mm"]],
+                            "Solar (MJ)": [f"{p:.2f}" for p in model_predictions[model]["solar_MJ"]],
+                        }),
+                        use_container_width=True, height=250,
+                    )
 
 else:
     empty_state("Models Not Trained", "Run `python train.py` to enable forecasting.")

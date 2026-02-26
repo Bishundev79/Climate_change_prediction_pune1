@@ -36,7 +36,6 @@ def load_css() -> None:
         st.warning("⚠️ styles.css not found — UI may look unstyled.")
 
 
-@st.cache_data(show_spinner=False)
 def load_results() -> pd.DataFrame:
     """Load model performance metrics from ``results/test_metrics.csv``.
 
@@ -101,8 +100,8 @@ def hero_section(title: str, subtitle: str, detail: str = "", variant: str = "")
     )
 
 
-def gradient_card(title: str, value: str, subtitle: str = "", variant: str = "gc-purple") -> str:
-    """Return HTML for a gradient stat card.
+def gradient_card(title: str, value: str, subtitle: str = "", variant: str = "") -> str:
+    """Return HTML for a gradient stat card. Now mapped to the premium metric-card CSS.
 
     Parameters
     ----------
@@ -113,11 +112,21 @@ def gradient_card(title: str, value: str, subtitle: str = "", variant: str = "gc
     subtitle : str, optional
         Small description below the value.
     variant : str
-        CSS class controlling the gradient (``gc-purple``, ``gc-pink``, etc.).
+        Passed string to determine accent color.
     """
     sub = f"<p>{subtitle}</p>" if subtitle else ""
+    
+    # Map old variants to corresponding modern climate accent hex colors
+    color = "#3b82f6"  # Default Blue
+    if "purple" in variant: color = "#8b5cf6"
+    elif "pink" in variant: color = "#ec4899"
+    elif "red" in variant: color = "#ef4444"
+    elif "green" in variant or "teal" in variant: color = "#10b981"
+    elif "orange" in variant: color = "#f97316"
+    elif "ocean" in variant: color = "#0ea5e9"
+    
     return (
-        f"<div class='gradient-card {variant}'>"
+        f"<div class='metric-card' style='border-top-color: {color};'>"
         f"<h3>{title}</h3><h2>{value}</h2>{sub}</div>"
     )
 

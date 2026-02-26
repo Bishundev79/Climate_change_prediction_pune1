@@ -80,7 +80,9 @@ class CNNLSTMModel:
 
         x = layers.Dense(64, activation="relu")(x)
         x = layers.Dense(32, activation="relu")(x)
-        outputs = layers.Dense(1)(x)
+        
+        num_targets = len(config.TARGETS) if hasattr(config, "TARGETS") else 1
+        outputs = layers.Dense(num_targets)(x)
 
         self.model = keras.Model(inputs, outputs)
         self.model.compile(
@@ -150,7 +152,9 @@ class TransformerModel:
         x = layers.Dense(d_model, activation="relu")(x)
         x = layers.Dropout(0.3)(x)
         x = layers.Dense(64, activation="relu")(x)
-        outputs = layers.Dense(1)(x)
+
+        num_targets = len(config.TARGETS) if hasattr(config, "TARGETS") else 1
+        outputs = layers.Dense(num_targets)(x)
 
         self.model = keras.Model(inputs, outputs)
         self.model.compile(

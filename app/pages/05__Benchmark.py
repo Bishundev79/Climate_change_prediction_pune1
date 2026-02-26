@@ -101,14 +101,17 @@ if not results.empty:
     # ── RMSE chart ────────────────────────────────────────────────────────────
     st.markdown("### 📊 Detailed Comparison")
 
-    colors = ["#27ae60" if "Our" in s else "#95a5a6" for s in benchmarks["Service"]]
+    colors = ["#10b981" if "Our" in s else "#4b5563" for s in benchmarks["Service"]]
 
     fig = go.Figure(go.Bar(
         y=benchmarks["Service"], x=benchmarks["RMSE_°C"],
         orientation="h", marker_color=colors,
         text=benchmarks["RMSE_°C"].round(2), textposition="outside",
     ))
-    fig.update_layout(template="plotly_white", height=450, title="RMSE (lower is better)", xaxis_title="RMSE (°C)")
+    fig.update_layout(
+        template="plotly_dark", height=450, title="RMSE (lower is better)", xaxis_title="RMSE (°C)",
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)"
+    )
     st.plotly_chart(fig, use_container_width=True)
 
     fig2 = go.Figure(go.Bar(
@@ -116,7 +119,10 @@ if not results.empty:
         orientation="h", marker_color=colors,
         text=benchmarks["R2_Score"].round(3), textposition="outside",
     ))
-    fig2.update_layout(template="plotly_white", height=450, title="R² Score (higher is better)", xaxis=dict(range=[0, 1]))
+    fig2.update_layout(
+        template="plotly_dark", height=450, title="R² Score (higher is better)", xaxis=dict(range=[0, 1]),
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)"
+    )
     st.plotly_chart(fig2, use_container_width=True)
 
     # ── Table ─────────────────────────────────────────────────────────────────

@@ -13,6 +13,7 @@ from typing import Optional
 import joblib
 import numpy as np
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.multioutput import MultiOutputRegressor
 import xgboost as xgb
 
 from src.config import config
@@ -27,7 +28,7 @@ class XGBoostModel:
 
     def __init__(self) -> None:
         model_cfg = config.MODEL_PARAMS.get("xgboost", {})
-        self.model = xgb.XGBRegressor(
+        base_estimator = xgb.XGBRegressor(
             n_estimators=model_cfg.get("n_estimators", 500),
             max_depth=model_cfg.get("max_depth", 8),
             learning_rate=model_cfg.get("learning_rate", 0.05),
@@ -36,7 +37,8 @@ class XGBoostModel:
             tree_method="hist",
             n_jobs=-1,
         )
-        self.name = "XGBoost"
+        self.model = MultiOutputRegressor(base_estimator)
+        self.name = "XGBoost (Multi-Target)"
 
     def train(
         self,
@@ -45,13 +47,8 @@ class XGBoostModel:
         X_val: np.ndarray,
         y_val: np.ndarray,
     ) -> None:
-        """Fit the model with early-stopping on *eval_set*."""
-        self.model.fit(
-            X_train,
-            y_train,
-            eval_set=[(X_val, y_val)],
-            verbose=False,
-        )
+        """Fit the model. *X_val*/*y_val* kept for API symmetry. Note eval_set isn't supported with MultiOutputRegressor without a wrapper."""
+        self.model.fit(X_train, y_train)
 
     def predict(self, X: np.ndarray) -> np.ndarray:
         """Return predictions for *X*."""
@@ -66,7 +63,7 @@ class XGBoostModel:
         """Load a previously saved model."""
         instance = cls.__new__(cls)
         instance.model = joblib.load(path)
-        instance.name = "XGBoost"
+        instance.name = "XGBoost (Multi-Target)"
         return instance
 
 
@@ -79,14 +76,15 @@ class RandomForestModel:
 
     def __init__(self) -> None:
         model_cfg = config.MODEL_PARAMS.get("random_forest", {})
-        self.model = RandomForestRegressor(
+        base_estimator = RandomForestRegressor(
             n_estimators=model_cfg.get("n_estimators", 400),
             max_depth=model_cfg.get("max_depth", 15),
             min_samples_leaf=model_cfg.get("min_samples_leaf", 2),
             random_state=config.RANDOM_STATE,
             n_jobs=-1,
         )
-        self.name = "Random Forest"
+        self.model = MultiOutputRegressor(base_estimator)
+        self.name = "Random Forest (Multi-Target)"
 
     def train(
         self,
@@ -111,5 +109,5 @@ class RandomForestModel:
         """Load a previously saved model."""
         instance = cls.__new__(cls)
         instance.model = joblib.load(path)
-        instance.name = "Random Forest"
+        instance.name = "Random Forest (Multi-Target)"
         return instance

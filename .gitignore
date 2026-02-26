@@ -29,6 +29,7 @@ models/*.h5
 
 # Training logs
 logs/
+results/*.json
 
 # Dev docs (internal only)
 WARP.md
@@ -37,6 +38,7 @@ QUICK_REFERENCE.md
 VISIBILITY_FIXES.md
 SETUP_PYTHON_GUIDE.md
 setup_python311.sh
+SUMMARY.md
 
 # Environment variables
 .env
@@ -46,3 +48,4 @@ setup_python311.sh
 build/
 dist/
 *.egg-info/
+.aider*

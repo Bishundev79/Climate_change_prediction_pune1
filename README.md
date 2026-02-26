@@ -20,8 +20,9 @@ A comprehensive climate prediction system that:
 ## 🚀 Features
 
 ### Model Architectures
+
 | Type | Model | Technique |
-|------|-------|-----------|
+| --- | --- | --- |
 | ML | **XGBoost** | Gradient Boosting |
 | ML | **Random Forest** | Bagging Ensemble |
 | DL | **CNN-LSTM Hybrid** | 1-D Conv → LSTM |
@@ -30,8 +31,9 @@ A comprehensive climate prediction system that:
 | Ensemble | **DL Ensemble** | Average of CNN-LSTM + Transformer |
 
 ### Interactive Dashboard (6 pages)
+
 | Page | Description |
-|------|-------------|
+| --- | --- |
 | **Home** | Model leaderboard, best-model banner, temperature trend chart |
 | **Overview** | Project statistics, dataset summary, model cards |
 | **Data Explorer** | Interactive time-series charts, correlations, distributions |
@@ -40,6 +42,7 @@ A comprehensive climate prediction system that:
 | **Benchmark** | RMSE / MAE / R² comparison across all 6 models |
 
 ### Advanced Feature Engineering
+
 - Lag features (1, 6, 12 months)
 - Rolling-window statistics (3, 6, 12 months)
 - Cyclical month encoding (sin/cos)
@@ -50,7 +53,7 @@ A comprehensive climate prediction system that:
 Historical climate data from Pune (1951–2024):
 
 | Feature | Description |
-|---------|-------------|
+| --- | --- |
 | `temp_C` | Average temperature (°C) — **target variable** |
 | `humidity_pct` | Relative humidity (%) |
 | `rainfall_mm` | Monthly rainfall (mm) |
@@ -62,6 +65,7 @@ Historical climate data from Pune (1951–2024):
 ## 🛠️ Installation
 
 ### Prerequisites
+
 - **Python 3.11** (recommended for TensorFlow compatibility)
 - pip
 
@@ -94,6 +98,7 @@ python train.py
 ```
 
 This will:
+
 - Process and prepare the climate data (monthly resampling, imputation)
 - Train XGBoost, Random Forest, CNN-LSTM, and Transformer models
 - Compute ML Ensemble and DL Ensemble predictions
@@ -110,7 +115,7 @@ Start the interactive Streamlit web application:
 cd app && streamlit run streamlit_app.py
 ```
 
-Access the dashboard at: **http://localhost:8501**
+Access the dashboard at: <http://localhost:8501>
 
 ### 3. Run IoT Sensor Simulation (Optional)
 
@@ -120,11 +125,11 @@ For real-time forecasting demonstration:
 python fake_iot_sensor.py
 ```
 
-Starts a Flask server on **http://localhost:5001** that simulates live IoT sensor readings. The Forecast page fetches data from this endpoint when "IoT Sensor (REST)" is selected.
+Starts a Flask server on <http://localhost:5001> that simulates live IoT sensor readings. The Forecast page fetches data from this endpoint when "IoT Sensor (REST)" is selected.
 
 ## 📁 Project Structure
 
-```
+```text
 Climate_change_prediction_pune1/
 ├── app/
 │   ├── streamlit_app.py          # Main dashboard (Home page)
@@ -160,7 +165,7 @@ Climate_change_prediction_pune1/
 ## 🏆 Model Performance
 
 | Model | RMSE (°C) | MAE (°C) | R² Score |
-|-------|-----------|----------|----------|
+| --- | --- | --- | --- |
 | **XGBoost** | 0.8049 | 0.5945 | 0.9328 |
 | **ML Ensemble** | 0.8063 | 0.5782 | 0.9326 |
 | **Random Forest** | 0.8410 | 0.5820 | 0.9267 |
@@ -194,23 +199,27 @@ models:
 ## 📚 Technical Details
 
 ### Data Pipeline
+
 1. Load daily climate CSV (1951–2024)
 2. Resample to monthly frequency (aggregation per feature)
 3. Impute missing values via linear interpolation + back-fill
 4. Chronological split: 70% train / 15% validation / 15% test
 
 ### ML Models (XGBoost, Random Forest)
+
 - Trained on engineered tabular features (lags, rolling stats, cyclical month)
 - Saved as `.pkl` via joblib — fast inference
 - Config-driven hyper-parameters
 
 ### DL Models (CNN-LSTM, Transformer)
+
 - Trained on raw scaled time-series sequences (lookback = 24 months)
 - StandardScaler for features and target (scalers saved for inference)
 - Saved as `.keras` checkpoints
 - Predictions inverse-transformed to original scale
 
 ### Ensembles
+
 - **ML Ensemble**: Simple average of XGBoost + Random Forest predictions
 - **DL Ensemble**: Simple average of CNN-LSTM + Transformer predictions
 - Computed at training time and available for live inference in the Forecast page
@@ -218,6 +227,7 @@ models:
 ## 🤝 Contributing
 
 Contributions are welcome! Feel free to:
+
 - Report bugs
 - Suggest features
 - Submit pull requests
@@ -229,6 +239,7 @@ This project is open source and available under the [MIT License](LICENSE).
 ## 👤 Author
 
 **Bishun Dev**
+
 - GitHub: [@Bishundev79](https://github.com/Bishundev79)
 
 ## 🙏 Acknowledgments

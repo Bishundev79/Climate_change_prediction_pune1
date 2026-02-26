@@ -18,7 +18,7 @@ from utils.shared import (
     empty_state,
 )
 
-st.set_page_config(page_title="Overview | Pune Climate", page_icon="📊", layout="wide")
+st.set_page_config(page_title="Climate Data Overview | Pune Climate", page_icon="📊", layout="wide")
 load_css()
 
 df = load_climate_data()
@@ -26,9 +26,9 @@ results = load_results()
 
 # ── Hero Banner ───────────────────────────────────────────────────────────────
 hero_section(
-    title="📊 Project Overview",
-    subtitle="Comprehensive Analysis of Pune Climate Data (1951 – 2024)",
-    detail="Leveraging Advanced Machine Learning for Climate Intelligence",
+    title="📊 Climate Data Overview",
+    subtitle="Historical Trends and Dataset Analysis",
+    detail="Exploring 73 years of temperature, rainfall, and climate shifts",
     variant="hero-purple",
 )
 
@@ -39,25 +39,25 @@ if df is not None:
     c1, c2, c3, c4 = st.columns(4)
     with c1:
         st.markdown(
-            gradient_card("📅 Records", f"{len(df):,}", "Daily measurements", "gc-purple"),
+            gradient_card("📅 Records", f"{len(df):,}", "Daily measurements", "purple"),
             unsafe_allow_html=True,
         )
     with c2:
         st.markdown(
             gradient_card("🌡️ Avg Temp", f"{df['temp_C'].mean():.1f}°C",
-                          f"Range: {df['temp_C'].min():.1f} – {df['temp_C'].max():.1f}°C", "gc-pink"),
+                          f"Range: {df['temp_C'].min():.1f} – {df['temp_C'].max():.1f}°C", "pink"),
             unsafe_allow_html=True,
         )
     with c3:
         st.markdown(
             gradient_card("💧 Avg Humidity", f"{df['humidity_pct'].mean():.1f}%",
-                          "Relative humidity", "gc-blue"),
+                          "Relative humidity", "blue"),
             unsafe_allow_html=True,
         )
     with c4:
         st.markdown(
             gradient_card("🌧️ Avg Rainfall", f"{df['rainfall_mm'].mean():.1f} mm",
-                          "Daily average", "gc-green"),
+                          "Daily average", "emerald"),
             unsafe_allow_html=True,
         )
 
@@ -100,13 +100,15 @@ if df is not None:
         yaxis="y2",
     ))
     fig.update_layout(
-        template="plotly_white", height=500,
+        template="plotly_dark", height=500,
         title="Yearly Averages: Temperature & Humidity",
         xaxis_title="Year",
-        yaxis=dict(title="Temperature (°C)", titlefont=dict(color="#e74c3c")),
-        yaxis2=dict(title="Humidity (%)", overlaying="y", side="right", titlefont=dict(color="#3498db")),
+        yaxis=dict(title="Temperature (°C)", title_font=dict(color="#e74c3c")),
+        yaxis2=dict(title="Humidity (%)", overlaying="y", side="right", title_font=dict(color="#3498db")),
         hovermode="x unified",
         legend=dict(orientation="h", x=0.5, xanchor="center", y=1.12),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)"
     )
     st.plotly_chart(fig, use_container_width=True)
 
@@ -118,52 +120,13 @@ if df is not None:
     winter = df[df["date"].dt.month.isin([12, 1, 2])]["temp_C"].mean()
 
     with s1:
-        st.markdown(gradient_card("☀️ Summer", f"{summer:.1f}°C", "Mar – May Average", "gc-orange"), unsafe_allow_html=True)
+        st.markdown(gradient_card("☀️ Summer", f"{summer:.1f}°C", "Mar – May Average", "orange"), unsafe_allow_html=True)
     with s2:
-        st.markdown(gradient_card("🌧️ Monsoon", f"{monsoon:.1f} mm", "Jun – Sep Rainfall", "gc-ocean"), unsafe_allow_html=True)
+        st.markdown(gradient_card("🌧️ Monsoon", f"{monsoon:.1f} mm", "Jun – Sep Rainfall", "blue"), unsafe_allow_html=True)
     with s3:
-        st.markdown(gradient_card("❄️ Winter", f"{winter:.1f}°C", "Dec – Feb Average", "gc-teal"), unsafe_allow_html=True)
+        st.markdown(gradient_card("❄️ Winter", f"{winter:.1f}°C", "Dec – Feb Average", "purple"), unsafe_allow_html=True)
 
-# ── Model Performance ────────────────────────────────────────────────────────
-if results is not None and not results.empty:
-    st.markdown("### 🏆 Model Performance Summary")
-    best = results.iloc[0]
 
-    left, right = st.columns([1, 2])
-    with left:
-        st.markdown(
-            f"<div class='gradient-card gc-purple'>"
-            f"<h3>🥇 Champion Model</h3>"
-            f"<h2>{best['Model']}</h2>"
-            f"<p>RMSE: {best['RMSE']}°C · MAE: {best['MAE']}°C · R²: {best['R2']}</p>"
-            f"</div>",
-            unsafe_allow_html=True,
-        )
-
-    with right:
-        colors = ["#27ae60", "#3498db", "#f39c12", "#e74c3c", "#9b59b6", "#1abc9c"]
-        fig = go.Figure()
-        fig.add_trace(go.Bar(
-            x=results["Model"], y=results["R2"],
-            marker=dict(color=colors[: len(results)]),
-            text=results["R2"].round(3), textposition="outside",
-        ))
-        fig.update_layout(
-            template="plotly_white", height=350,
-            title="R² Score Comparison (higher is better)",
-            yaxis=dict(range=[0, 1]),
-            showlegend=False,
-        )
-        st.plotly_chart(fig, use_container_width=True)
-
-    st.markdown("#### 📊 Detailed Performance")
-    st.dataframe(
-        results.style.background_gradient(cmap="RdYlGn_r", subset=["RMSE", "MAE"])
-        .background_gradient(cmap="RdYlGn", subset=["R2"])
-        .format({"RMSE": "{:.4f}", "MAE": "{:.4f}", "R2": "{:.4f}"}),
-        use_container_width=True,
-        height=250,
-    )
 
 elif df is None:
     empty_state("Data Not Available", "Ensure `data/pune_climate_with_co2.csv` exists.")

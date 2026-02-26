@@ -17,7 +17,7 @@ from src.config import config
 
 
 class FeatureEngine:
-    """Stateless feature transformer for monthly climate data.
+    """Stateless feature transformer for daily climate data.
 
     All parameters (lag orders, rolling windows, feature columns) are
     read from the global :class:`Config` instance so that every
@@ -33,7 +33,7 @@ class FeatureEngine:
         Parameters
         ----------
         df : pd.DataFrame
-            Monthly resampled climate data that **must** include a
+            Daily climate data that **must** include a
             ``config.DATE_COL`` column and all ``config.FEATURES``.
 
         Returns
@@ -59,15 +59,17 @@ class FeatureEngine:
                     df_feat[col].rolling(window, min_periods=1).mean()
                 )
 
-        # ── Cyclical month encoding ───────────────────────────────────
-        df_feat["month"] = df_feat[config.DATE_COL].dt.month
-        df_feat["month_sin"] = np.sin(2 * np.pi * df_feat["month"] / 12)
-        df_feat["month_cos"] = np.cos(2 * np.pi * df_feat["month"] / 12)
+        # ── Cyclical day-of-year encoding ──────────────────────────────
+        df_feat["dayofyear"] = df_feat[config.DATE_COL].dt.dayofyear
+        df_feat["day_sin"] = np.sin(2 * np.pi * df_feat["dayofyear"] / 365.25)
+        df_feat["day_cos"] = np.cos(2 * np.pi * df_feat["dayofyear"] / 365.25)
 
         # Drop rows with NaN introduced by lags
         df_feat = df_feat.dropna()
 
+        # The target block now handles config.TARGETS (list)
+        targets = config.TARGETS if hasattr(config, "TARGETS") else [config.TARGET]
         feature_cols = [
-            c for c in df_feat.columns if c not in [config.DATE_COL, config.TARGET]
+            c for c in df_feat.columns if c not in [config.DATE_COL] + targets
         ]
         return df_feat, feature_cols
